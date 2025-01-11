@@ -6,13 +6,13 @@ from frappe.utils import encode, get_files_path
 import requests
 from frappe import _
 from frappe.utils.background_jobs import enqueue
-from go1_webshop.go1_webshop.doctype.override_doctype.builder_page import log_css_template
+# from go1_webshop.go1_webshop.doctype.override_doctype.builder_page import log_css_template
 
 MAX_LOG_LENGTH = 140
 MAX_METHOD_LENGTH = 255
 
 
-def make_error_log(message = ""):
+def make_error_log(message=""):
     frappe.log_error(message, frappe.get_traceback())
 
 
@@ -48,14 +48,16 @@ def fetch_erp_ecommerce_themes_from_external_url():
     external_url = f"{webshop_theme_settings.url}/api/method/go1_webshop_theme.go1_webshop_theme.utils.fetch_erp_ecommerce_themes"
 
     try:
-        response = requests.post(external_url,headers=headers)
+        response = requests.post(external_url, headers=headers)
         response.raise_for_status()
         themes = response.json()
         for theme in themes.get('message'):
-            theme['theme_image'] = webshop_theme_settings.url + theme['theme_image']
+            theme['theme_image'] = webshop_theme_settings.url + \
+                theme['theme_image']
         return themes.get('message', [])
     except requests.exceptions.RequestException as e:
-        frappe.throw(_('Error fetching themes from external URL: {0}').format(str(e)))
+        frappe.throw(
+            _('Error fetching themes from external URL: {0}').format(str(e)))
 
 
 @frappe.whitelist(allow_guest=True)
@@ -69,34 +71,31 @@ def after_install():
     insert_custom_fields()
     # insert_component()
     get_theme()
-    
-
 
 
 @frappe.whitelist(allow_guest=True)
 def insert_custom_block():
     source_path = frappe.get_app_path("go1_webshop")
-    file_path = os.path.join(source_path, "templates/js", "custom_html_block.json")
-    data = json.load(open(file_path,"r"))
-    if not frappe.db.exists(data[0].get("doctype"),data[0].get("name")):
+    file_path = os.path.join(
+        source_path, "templates/js", "custom_html_block.json")
+    data = json.load(open(file_path, "r"))
+    if not frappe.db.exists(data[0].get("doctype"), data[0].get("name")):
         doc = frappe.new_doc(data[0].get("doctype"))
         doc.update(data[0])
-        doc.insert(ignore_permissions=True,ignore_mandatory = True)
+        doc.insert(ignore_permissions=True, ignore_mandatory=True)
         frappe.db.commit()
 
 
 @frappe.whitelist(allow_guest=True)
 def insert_theme_selection_details():
-    
     """ After migrate functionalities """
-    
+
     update_webshop_dettings()
     insert_default_pages()
     clear_cache_for_current_site()
 
 
 def update_webshop_dettings():
-
     """ Set the default values for Webshop Settings """
 
     try:
@@ -115,14 +114,14 @@ def update_webshop_dettings():
             webshop_settings.price_list = "Standard Selling"
             webshop_settings.quotation_series = "SAL-QTN-.YYYY.-"
             webshop_settings.default_customer_group = "All Customer Groups"
-        webshop_settings.save(ignore_permissions = True)
+        webshop_settings.save(ignore_permissions=True)
     except:
-        make_error_log(message = "Error in after_install.update_webshop_dettings")
+        make_error_log(
+            message="Error in after_install.update_webshop_dettings")
         pass
 
 
 def insert_default_pages():
-    
     """ To insert the Default Builder Pages for browse themes """
     try:
         module_path = frappe.get_module_path("go1_webshop")
@@ -132,14 +131,13 @@ def insert_default_pages():
             read_file_path(folder_path, "builder_components.json")
             insert_builder_pages(folder_path, "builder_pages.json")
     except:
-        make_error_log(message = "Error in after_install.insert_default_pages")
+        make_error_log(message="Error in after_install.insert_default_pages")
         pass
 
 
 def insert_builder_pages(folder_path, file_name):
-    
     """ To insert the Default Builder Pages """
-    
+
     file_path = os.path.join(folder_path, file_name)
     if os.path.exists(file_path):
         with open(file_path, 'r') as f:
@@ -149,9 +147,8 @@ def insert_builder_pages(folder_path, file_name):
 
 
 def read_file_path(folder_path, file_name):
-
     """ To insert the Builder Client Scripts and Builder Components for Default Builder Pages """
-    
+
     file_path = os.path.join(folder_path, file_name)
     if os.path.exists(file_path):
         with open(file_path, 'r') as f:
@@ -160,13 +157,16 @@ def read_file_path(folder_path, file_name):
                 for k in data:
                     if k['doctype'] == "Builder Client Script":
                         if not frappe.db.exists({"doctype": k.get('doctype'), "name": k.get('name')}):
-                            script_doc = frappe.get_doc(k).insert(ignore_permissions=True,ignore_mandatory = True)
-                            frappe.db.sql("""UPDATE `tabBuilder Client Script` SET name=%(c_name)s WHERE name=%(s_name)s""", {"c_name": k.get('name'), "s_name": script_doc.name})
+                            script_doc = frappe.get_doc(k).insert(
+                                ignore_permissions=True, ignore_mandatory=True)
+                            frappe.db.sql("""UPDATE `tabBuilder Client Script` SET name=%(c_name)s WHERE name=%(s_name)s""", {
+                                          "c_name": k.get('name'), "s_name": script_doc.name})
                             frappe.db.commit()
                         else:
-                            script_doc = frappe.get_doc("Builder Client Script", k.get('name'))
+                            script_doc = frappe.get_doc(
+                                "Builder Client Script", k.get('name'))
                             script_doc.update(k)
-                            script_doc.save(ignore_permissions = True)
+                            script_doc.save(ignore_permissions=True)
                     elif k['doctype'] == "Builder Component":
                         create_builder_component(k)
 
@@ -174,23 +174,26 @@ def read_file_path(folder_path, file_name):
 @frappe.whitelist(allow_guest=True)
 def get_theme():
     themes = [
-                {"theme_name": "Go1 Furniture Theme", "doctype":"Go1 Webshop Theme", "theme_image": "https://go1themes.tridotstech.com/files/Go1%20Furniture%20theme.png", "theme_route": "furniture_theme"},
-                {"theme_name": "Go1 Cosmetics Theme", "doctype":"Go1 Webshop Theme", "theme_image": "https://go1themes.tridotstech.com/files/Cosmetics%20theme.png", "theme_route": "fashion_theme"}
-            ]
+        {"theme_name": "Go1 Furniture Theme", "doctype": "Go1 Webshop Theme",
+            "theme_image": "https://go1themes.tridotstech.com/files/Go1%20Furniture%20theme.png", "theme_route": "furniture_theme"},
+        {"theme_name": "Go1 Cosmetics Theme", "doctype": "Go1 Webshop Theme",
+         "theme_image": "https://go1themes.tridotstech.com/files/Cosmetics%20theme.png", "theme_route": "fashion_theme"}
+    ]
     for theme in themes:
-        exists = frappe.db.exists("Go1 Webshop Theme", {"theme_name": theme["theme_name"]})
+        exists = frappe.db.exists("Go1 Webshop Theme", {
+                                  "theme_name": theme["theme_name"]})
         if not exists:
             doc = frappe.new_doc("Go1 Webshop Theme")
             doc.theme_name = theme["theme_name"]
             doc.theme_image = theme["theme_image"]
             doc.theme_route = theme["theme_route"]
-            doc.insert(ignore_permissions = True,ignore_mandatory = True)
+            doc.insert(ignore_permissions=True, ignore_mandatory=True)
             frappe.db.commit()
 
 
 @frappe.whitelist(allow_guest=True)
-def insert_pages(theme, nodata = None):     
-    """ Deleting Old Theme Data """      
+def insert_pages(theme, nodata=None):
+    """ Deleting Old Theme Data """
     frappe.db.sql('''DELETE I
                     FROM `tabWishlist Item` I
                     INNER JOIN `tabWebsite Item` P ON P.name = I.website_item
@@ -203,19 +206,28 @@ def insert_pages(theme, nodata = None):
                     WHERE I.is_go1_webshop_item = 1
                 ''')
     frappe.db.sql('DELETE FROM `tabItem` WHERE is_go1_webshop_item = 1')
-    frappe.db.sql('DELETE FROM `tabWebsite Item` WHERE is_go1_webshop_item = 1')
+    frappe.db.sql(
+        'DELETE FROM `tabWebsite Item` WHERE is_go1_webshop_item = 1')
     frappe.db.sql('DELETE FROM `tabItem Group` WHERE is_go1_webshop_item = 1')
     frappe.db.sql('DELETE FROM `tabMobile Menu`')
     frappe.db.sql('DELETE FROM `tabItem Price` WHERE is_go1_webshop_item = 1')
-    frappe.db.sql('DELETE FROM `tabWebsite Slideshow Item` WHERE is_go1_webshop_item = 1')
-    frappe.db.sql('DELETE FROM `tabWebsite Slideshow` WHERE is_go1_webshop_item = 1')
-    frappe.db.sql('DELETE FROM `tabBuilder Page` WHERE is_go1_webshop_item = 1')
-    frappe.db.sql('DELETE FROM `tabBuilder Component` WHERE is_go1_webshop_item = 1')
-    frappe.db.sql('DELETE FROM `tabBuilder Client Script` WHERE is_go1_webshop_item = 1')
+    frappe.db.sql(
+        'DELETE FROM `tabWebsite Slideshow Item` WHERE is_go1_webshop_item = 1')
+    frappe.db.sql(
+        'DELETE FROM `tabWebsite Slideshow` WHERE is_go1_webshop_item = 1')
+    frappe.db.sql(
+        'DELETE FROM `tabBuilder Page` WHERE is_go1_webshop_item = 1')
+    frappe.db.sql(
+        'DELETE FROM `tabBuilder Component` WHERE is_go1_webshop_item = 1')
+    frappe.db.sql(
+        'DELETE FROM `tabBuilder Client Script` WHERE is_go1_webshop_item = 1')
 
     def update_home_page(new_home_route):
-        current_home_page = frappe.db.get_value('Website Settings', 'Website Settings', 'home_page')
-        frappe.db.set_value('Website Settings', 'Website Settings', 'home_page', new_home_route)
+        current_home_page = frappe.db.get_value(
+            'Website Settings', 'Website Settings', 'home_page')
+        frappe.db.set_single_value(
+            'Website Settings', 'home_page', new_home_route)
+
         frappe.db.commit()
 
         home_route = "go1-landing"
@@ -228,9 +240,8 @@ def insert_pages(theme, nodata = None):
 
 # @frappe.whitelist(allow_guest=True)
 def clear_cache_for_current_site():
-    
     """ CLear Cache """
-    
+
     current_site = frappe.local.site
     commands = f"bench --site {current_site} clear-cache"
     os.system(commands)
@@ -239,9 +250,8 @@ def clear_cache_for_current_site():
 
 @frappe.whitelist(allow_guest=True)
 def prepend_domain_to_image_urls(data, domain):
-    
     """Recursively prepend domain to image URLs in the given dictionary or list."""
-    
+
     if isinstance(data, dict):
         for key, value in data.items():
             if isinstance(value, str) and value.startswith("/files/"):
@@ -256,15 +266,15 @@ def prepend_domain_to_image_urls(data, domain):
 
 
 def update_blocks_with_domain(blocks, domain):
-    
     """Update the blocks key with domain prepended to all src attributes."""
-    
+
     try:
         blocks_data = json.loads(blocks)
         prepend_domain_to_image_urls(blocks_data, domain)
         return json.dumps(blocks_data)
     except json.JSONDecodeError as e:
-        frappe.log_error(frappe.get_traceback(), "JSON Decode Error in update_blocks_with_domain")
+        frappe.log_error(frappe.get_traceback(),
+                         "JSON Decode Error in update_blocks_with_domain")
         return blocks
 
 
@@ -291,156 +301,227 @@ def get_uploaded_file_content(filedata):
             frappe.msgprint(_('No file attached'))
             return None
     except Exception as e:
-        frappe.log_error("Error in seapi.get_uploaded_file_content", frappe.get_traceback())
+        frappe.log_error(
+            "Error in seapi.get_uploaded_file_content", frappe.get_traceback())
 
 
 @frappe.whitelist(allow_guest=True)
-def insert_custom_fields(theme, nodata = None):     
+def insert_custom_fields(theme, nodata=None):
     import requests
     import os
     import shutil
     import zipfile
     from urllib.request import urlopen
-    
+    import tempfile
+
+    print("[INFO] Initializing Go1 Webshop Theme Custom Fields Insertion")
     webshop_theme_settings = frappe.get_single("Go1 Webshop Theme Settings")
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"token {webshop_theme_settings.api_key}:{webshop_theme_settings.api_secret}"
     }
-    
+
     external_url = f"{webshop_theme_settings.url}/api/method/go1_webshop_theme.go1_webshop_theme.utils.get_all_json"
     try:
-        response = requests.get(external_url, headers=headers, json={"theme": theme})
+        print("[INFO] Fetching theme data from external API")
+        response = requests.get(
+            external_url, headers=headers, json={"theme": theme})
         response.raise_for_status()
+
         themes = response.json()
         message = themes.get("message", [])
+        print("[INFO] Theme data fetched successfully")
+
         for row in message:
             for i, j in row.items():
                 if i == "file_list":
-                    from urllib.request import urlopen
-                    import zipfile
-                    source_path = frappe.get_module_path("go1_webshop")
-                    file_path = os.path.join(source_path, "go1_webshop_files.zip")         
-                    if not os.path.exists(os.path.join(source_path, "go1_webshop_files.zip")):
+                    print("[INFO] Processing file list")
+                    with tempfile.TemporaryDirectory() as temp_dir:
+                        file_path = os.path.join(
+                            temp_dir, "go1_webshop_files.zip")
+
                         try:
-                            os.makedirs(os.path.join(source_path, theme))
+                            print("[INFO] Downloading file list")
+                            with urlopen(j) as data, open(file_path, 'wb') as zip_ref:
+                                shutil.copyfileobj(data, zip_ref)
+
+                            print("[INFO] Extracting files")
+                            with zipfile.ZipFile(file_path, 'r') as file_data:
+                                for file in file_data.infolist():
+                                    if file.is_dir() or file.filename.startswith("__MACOSX/"):
+                                        continue
+                                    filename = os.path.basename(file.filename)
+                                    if filename.startswith("."):
+                                        continue
+                                    origin = get_files_path()
+                                    item_file_path = os.path.join(
+                                        origin, file.filename)
+                                    if not frappe.db.exists("File", {"file_name": filename}):
+                                        print(
+                                            f"[INFO] File does not exist in the database, proceeding to upload: {filename}")
+                                    else:
+                                        print(
+                                            f"[INFO] File exists in the database, cleaning up: {filename}")
+
+                                        # Extract base filename (without extension)
+                                        base_filename, ext = os.path.splitext(
+                                            filename)
+
+                                        # Check and clean postfix versions (including the exact filename)
+                                        existing_files = frappe.db.get_list(
+                                            "File",
+                                            filters={"file_name": [
+                                                "like", f"{base_filename}%{ext}"]},
+                                            fields=["name", "file_url"]
+                                        )
+                                        for existing_file in existing_files:
+                                            try:
+                                                # Get the file path for reference
+                                                existing_file_path = frappe.utils.get_files_path(
+                                                    existing_file["file_url"])
+
+                                                # Remove the file if it exists
+                                                if os.path.exists(existing_file_path):
+                                                    os.remove(
+                                                        existing_file_path)
+                                                # Delete the file record from the database
+                                                frappe.delete_doc(
+                                                    "File", existing_file["name"], force=True)
+                                            except Exception as cleanup_error:
+                                                frappe.log_error(
+                                                    f"Failed to remove existing file: {existing_file_path}, Error: {str(cleanup_error)}",
+                                                    "file_cleanup_error"
+                                                )
+
+                                    # Proceed with uploading the new file
+                                    try:
+                                        file_doc = frappe.new_doc("File")
+                                        file_doc.content = file_data.read(
+                                            file.filename)
+                                        file_doc.file_name = filename  # Force the original filename
+                                        file_doc.folder = "Home"
+                                        file_doc.is_private = 0
+                                        file_doc.save(ignore_permissions=True)
+
+                                        # Ensure the file is saved with the original name
+                                        saved_path = frappe.utils.get_files_path(
+                                            file_doc.file_url)
+                                        print(
+                                            f"[INFO] File uploaded successfully: {saved_path}")
+                                    except Exception as e:
+                                        frappe.log_error(
+                                            f"Failed to upload file: {filename}, Error: {str(e)}", "file_upload_error"
+                                        )
+
                         except Exception as e:
-                            frappe.log_error(f"Error while creating folder: {e}", frappe.get_traceback())
+                            frappe.log_error(
+                                f"Error while processing file list: {str(e)}", frappe.get_traceback())
                             continue
 
-                    try:         
-                        with urlopen(j) as data, open(file_path, 'wb') as zip_ref:
-                            shutil.copyfileobj(data, zip_ref)                                                 
-                        with zipfile.ZipFile(file_path, 'r') as file_data:                        
-                            for file in file_data.infolist():
-                                if file.is_dir() or file.filename.startswith("__MACOSX/"):
-                                    continue
-                                filename = os.path.basename(file.filename)
-                                if filename.startswith("."):
-                                    continue
-                                origin = get_files_path()
-                                item_file_path = os.path.join(origin, file.filename)
-                                if not os.path.exists(item_file_path) and not frappe.db.exists("File", {"file_name": filename}):
-                                    file_doc = frappe.new_doc("File")
-                                    file_doc.content = file_data.read(file.filename)
-                                    file_doc.file_name = filename
-                                    file_doc.folder = "Home"
-                                    file_doc.is_private = 0
-                                    file_doc.save(ignore_permissions=True)
-                    except Exception as e:
-                        frappe.log_error(f"Error while downloading and extracting file", frappe.get_traceback())
-                        continue
                 try:
                     if isinstance(j, dict):
                         if j['doctype'] == "Go1 Webshop Theme" and not frappe.db.exists({"doctype": j['doctype'], "name": j['name']}):
-                            frappe.get_doc(j).insert(ignore_permissions=True,ignore_mandatory = True)
+                            frappe.get_doc(j).insert(
+                                ignore_permissions=True, ignore_mandatory=True)
                         if j['doctype'] == "Builder Settings":
-                            frappe.get_doc(j).insert(ignore_permissions=True,ignore_mandatory = True)
+                            frappe.get_doc(j).insert(
+                                ignore_permissions=True, ignore_mandatory=True)
 
-                    if isinstance(j, list):                       
-                        for k in j:                                                                 
-                            
+                    if isinstance(j, list):
+                        for k in j:
                             if nodata != 1 or k['doctype'] not in ["Item Group", "Item", "Website Item"]:
                                 if k['doctype'] == "Builder Component":
                                     create_builder_component(k)
                                 elif k['doctype'] == "Builder Client Script" and not frappe.db.exists({"doctype": k.get('doctype'), "name": k.get('name')}):
-                                    script_doc = frappe.get_doc(k).insert(ignore_permissions=True,ignore_mandatory = True)
-                                    frappe.db.sql("""UPDATE `tabBuilder Client Script` SET name=%(c_name)s WHERE name=%(s_name)s""", {"c_name": k.get('name'), "s_name": script_doc.name})
+                                    script_doc = frappe.get_doc(k).insert(
+                                        ignore_permissions=True, ignore_mandatory=True)
+                                    frappe.db.sql("""UPDATE `tabBuilder Client Script` SET name=%(c_name)s WHERE name=%(s_name)s""", {
+                                                  "c_name": k.get('name'), "s_name": script_doc.name})
                                     frappe.db.commit()
                                 elif k['doctype'] == "Custom Field" and not frappe.db.exists({"doctype": k['doctype'], "name": k['name']}):
-                                    frappe.get_doc(k).insert(ignore_permissions=True,ignore_mandatory = True)
+                                    frappe.get_doc(k).insert(
+                                        ignore_permissions=True, ignore_mandatory=True)
                                 elif k['doctype'] == "Item Group" and not frappe.db.exists({"doctype": k['doctype'], "name": k['item_group_name']}):
-                                    frappe.get_doc(k).insert(ignore_permissions=True,ignore_mandatory = True)
+                                    frappe.get_doc(k).insert(
+                                        ignore_permissions=True, ignore_mandatory=True)
                                 elif k['doctype'] == "Mobile Menu" and not frappe.db.exists({"doctype": k['doctype'], "name": k['name']}):
-                                    frappe.get_doc(k).insert(ignore_permissions=True,ignore_mandatory = True)
+                                    frappe.get_doc(k).insert(
+                                        ignore_permissions=True, ignore_mandatory=True)
                                 elif k['doctype'] == "Website Slideshow" and not frappe.db.exists({"doctype": k['doctype'], "name": k['slideshow_name']}):
-                                    frappe.get_doc(k).insert(ignore_permissions=True,ignore_mandatory = True)
+                                    frappe.get_doc(k).insert(
+                                        ignore_permissions=True, ignore_mandatory=True)
                                 elif k['doctype'] == "Item" and not frappe.db.exists({"doctype": k['doctype'], "name": k['name']}):
                                     insert_item_data(j)
                                 elif k['doctype'] == "Website Item" and not frappe.db.exists({"doctype": k['doctype'], "name": k['name']}):
                                     insert_item_data(j)
-
-                                elif k['doctype'] == "Builder Page":                                    
+                                elif k['doctype'] == "Builder Page":
                                     read_page_module_path(j)
                 except Exception as e:
-                    frappe.log_error(frappe.get_traceback(), "insert_custom_fields_error")
+                    frappe.log_error(frappe.get_traceback(),
+                                     "insert_custom_fields_error")
     except Exception as e:
-        # frappe.throw(_('An unexpected error occurred: {0}').format(str(e)))
         frappe.log_error(str(e), frappe.get_traceback())
 
 
 def create_builder_component(param):
     try:
         if not frappe.db.exists({"doctype": param['doctype'], "name": param['component_id']}):
-            frappe.get_doc(param).insert(ignore_permissions=True,ignore_mandatory = True)
+            frappe.get_doc(param).insert(
+                ignore_permissions=True, ignore_mandatory=True)
         else:
             doc = frappe.get_doc(param['doctype'], param['component_id'])
             doc.unlock()
             doc.update(param)
-            doc.save(ignore_permissions = True,ignore_mandatory = True)
+            doc.save(ignore_permissions=True, ignore_mandatory=True)
         frappe.db.commit()
     except frappe.exceptions.DocumentLockedError:
-        frappe.log_error("frappe.exceptions.DocumentLockedError", frappe.get_traceback())
+        frappe.log_error("frappe.exceptions.DocumentLockedError",
+                         frappe.get_traceback())
         pass
     except Exception as e:
-        frappe.log_error("create_builder_component_error", frappe.get_traceback())
+        frappe.log_error("create_builder_component_error",
+                         frappe.get_traceback())
 
 
 def read_page_module_path(out):
-        out_json = {}
-        for index, i in enumerate(out):
-            try:
-            
-                if i.get('client_scripts'):                
-                    out_json[i.get('page_title')] = i['client_scripts']
-                    del i['client_scripts']
-                if not frappe.db.exists({"doctype": i.get('doctype'), "page_title": i.get('page_title')}):
-                 
-                    page_doc = frappe.get_doc(i).insert(ignore_permissions = True,ignore_mandatory = True)
+    out_json = {}
+    for index, i in enumerate(out):
+        try:
 
-                    frappe.db.set_value(i.get('doctype'), page_doc.name, 'route', i.get('route'))
-                    
-                    if i.get('page_title') in out_json:
-                        for child_index, script in enumerate(out_json[i.get('page_title')]):
-                            script_name = f"{script.get('builder_script')}{page_doc.name}{child_index}"
+            if i.get('client_scripts'):
+                out_json[i.get('page_title')] = i['client_scripts']
+                del i['client_scripts']
+            if not frappe.db.exists({"doctype": i.get('doctype'), "page_title": i.get('page_title')}):
 
-                            frappe.db.sql(f"""INSERT INTO `tabBuilder Page Client Script` (name, builder_script, parent, parentfield, parenttype)
+                page_doc = frappe.get_doc(i).insert(
+                    ignore_permissions=True, ignore_mandatory=True)
+
+                frappe.db.set_single_value(
+                    i.get('doctype'), 'route', i.get('route'))
+
+                if i.get('page_title') in out_json:
+                    for child_index, script in enumerate(out_json[i.get('page_title')]):
+                        script_name = f"{script.get('builder_script')}{page_doc.name}{child_index}"
+
+                        frappe.db.sql(f"""INSERT INTO `tabBuilder Page Client Script` (name, builder_script, parent, parentfield, parenttype)
                             VALUES (%s, %s, %s, 'client_scripts', 'Builder Page')""",
-                                        (script_name, script.get('builder_script'), page_doc.name))
+                                      (script_name, script.get('builder_script'), page_doc.name))
 
-                            frappe.db.commit()
-                else:
-                    page_doc = frappe.get_doc(i.get('doctype'), {"page_title": i.get('page_title')})                   
-                    # if i["name"]:
-                    #     del i["name"]
-                    page_doc.update(i)
-                    page_doc.save(ignore_permissions = True)
+                        frappe.db.commit()
+            else:
+                page_doc = frappe.get_doc(
+                    i.get('doctype'), {"page_title": i.get('page_title')})
+                # if i["name"]:
+                #     del i["name"]
+                page_doc.update(i)
+                page_doc.save(ignore_permissions=True)
 
-            except Exception as e:
-                frappe.log_error("read_page_module_path",frappe.get_traceback())
-        for page in out:
-            if page.get('page_title') == "Go1 Landing":
-                frappe.db.set_value("Website Settings", "Website Settings", "home_page", page.get('route'))
+        except Exception as e:
+            frappe.log_error("read_page_module_path", frappe.get_traceback())
+    for page in out:
+        if page.get('page_title') == "Go1 Landing":
+            frappe.db.set_single_value(
+                "Website Settings", "home_page", page.get('route'))
 
 
 @frappe.whitelist(allow_guest=True)
@@ -448,7 +529,7 @@ def insert_item_data(out):
     item_codes = []
     warehouse = None
     max_log_length = 140
-    
+
     for i in out:
         try:
             if not frappe.db.exists({"doctype": i.get('doctype'), "item_name": i.get('item_name')}):
@@ -460,9 +541,10 @@ def insert_item_data(out):
 
                 if "india_compliance" in frappe.get_installed_apps() and i.get('doctype') == "Item":
                     i["gst_hsn_code"] = "999900"
-        
-                frappe.get_doc(i).insert(ignore_permissions=True,ignore_mandatory = True)
-            
+
+                frappe.get_doc(i).insert(
+                    ignore_permissions=True, ignore_mandatory=True)
+
                 if i.get('doctype') == "Website Item":
                     price_doc = frappe.new_doc("Item Price")
                     price_doc.item_code = i.get("item_code")
@@ -476,7 +558,8 @@ def insert_item_data(out):
                         price_doc.save(ignore_permissions=True)
                         item_codes.append(i.get("item_code"))
                     else:
-                        frappe.log_error(f"Item {price_doc.item_code} not found. Skipping price insertion.")
+                        frappe.log_error(
+                            f"Item {price_doc.item_code} not found. Skipping price insertion.")
 
         except frappe.NameError:
             pass

@@ -4,7 +4,7 @@ app_publisher = "tridotstech"
 app_description = "Ecommerce app"
 app_email = "info@tridotstech.com"
 app_license = "mit"
-required_apps = ["erpnext","webshop","builder"]
+required_apps = ["erpnext", "webshop", "builder"]
 # Includes in <head>
 # ------------------
 # include js, css files in header of desk.html
@@ -35,25 +35,28 @@ required_apps = ["erpnext","webshop","builder"]
 # }
 
 doc_events = {
-    "Builder Page":{
-        "on_update":"go1_webshop.go1_webshop.api.update_global_script"
+    "Builder Page": {
+        "on_update": "go1_webshop.go1_webshop.api.update_global_script"
     },
-    "Builder Settings":{
-        "on_update":"go1_webshop.go1_webshop.api.update_global_script_builder_page"
+    "Builder Settings": {
+        "on_update": "go1_webshop.go1_webshop.api.update_global_script_builder_page"
     },
-    "Website Item":{
-        "validate":"go1_webshop.go1_webshop.api.update_website_item_route"
+    "Website Item": {
+        "validate": "go1_webshop.go1_webshop.api.update_website_item_route"
     },
-    "Item Group":{
-        "validate":"go1_webshop.go1_webshop.api.update_website_item_route"
+    "Item Group": {
+        "validate": "go1_webshop.go1_webshop.api.update_website_item_route"
     }
 }
 
 
 after_migrate = [
-	"go1_webshop.go1_webshop.after_install.insert_theme_selection_details",
+    "go1_webshop.go1_webshop.after_install.insert_theme_selection_details",
     "go1_webshop.go1_webshop.after_install.insert_custom_block"
 ]
+
+app_include_python = ["go1_webshop.go1_webshop.patches.builder_page_patch"]
+
 
 # fixtures = [
 #     {
@@ -258,4 +261,3 @@ after_migrate = [
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-

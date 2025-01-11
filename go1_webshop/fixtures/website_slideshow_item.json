@@ -1,0 +1,44 @@
+[
+ {
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Website Slideshow Item",
+  "heading": null,
+  "image": "/files/slider3.png",
+  "is_go1_webshop_item": 1,
+  "modified": "2024-11-26 22:59:43.550362",
+  "name": "9skvoj8oj4",
+  "parent": "Landing Page",
+  "parentfield": "slideshow_items",
+  "parenttype": "Website Slideshow",
+  "url": "/products/mattresses"
+ },
+ {
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Website Slideshow Item",
+  "heading": null,
+  "image": "/files/slider1.png",
+  "is_go1_webshop_item": 1,
+  "modified": "2024-11-26 22:59:43.550362",
+  "name": "h7jc49c586",
+  "parent": "Landing Page",
+  "parentfield": "slideshow_items",
+  "parenttype": "Website Slideshow",
+  "url": "/products/sofas-seating"
+ },
+ {
+  "description": null,
+  "docstatus": 0,
+  "doctype": "Website Slideshow Item",
+  "heading": null,
+  "image": "/files/slider2.png",
+  "is_go1_webshop_item": 1,
+  "modified": "2024-11-26 22:59:43.550362",
+  "name": "jg0s8k3ie4",
+  "parent": "Landing Page",
+  "parentfield": "slideshow_items",
+  "parenttype": "Website Slideshow",
+  "url": "/products/furnishing-decor"
+ }
+]
