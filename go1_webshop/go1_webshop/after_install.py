@@ -230,8 +230,8 @@ def insert_pages(theme, nodata=None):
 
         frappe.db.commit()
 
-        home_route = "go1-landing"
-        update_home_page(home_route)
+    home_route = "go1-landing"
+    update_home_page(home_route)
 
     insert_custom_fields(theme, nodata)
     clear_cache_for_current_site()
@@ -307,6 +307,13 @@ def get_uploaded_file_content(filedata):
 
 @frappe.whitelist(allow_guest=True)
 def insert_custom_fields(theme, nodata=None):
+    """
+    Inserts custom fields and related configurations for the Go1 Webshop Theme.
+
+    Args:
+        theme (str): The theme name to fetch data for.
+        nodata (int, optional): A flag to skip processing specific data types.
+    """
     import requests
     import os
     import shutil
@@ -314,20 +321,37 @@ def insert_custom_fields(theme, nodata=None):
     from urllib.request import urlopen
     import tempfile
 
+    def log_error_custom(title, message):
+        """
+        Helper function to log errors with truncated titles.
+
+        Args:
+            title (str): Error title.
+            message (str): Full error message or traceback.
+        """
+        title = title[:140] if len(title) > 140 else title
+        frappe.log_error(message, title)
+
     print("[INFO] Initializing Go1 Webshop Theme Custom Fields Insertion")
+
+    # Fetch Webshop Theme Settings from Frappe configuration
     webshop_theme_settings = frappe.get_single("Go1 Webshop Theme Settings")
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"token {webshop_theme_settings.api_key}:{webshop_theme_settings.api_secret}"
     }
 
+    # URL to fetch theme data from the external system
     external_url = f"{webshop_theme_settings.url}/api/method/go1_webshop_theme.go1_webshop_theme.utils.get_all_json"
+
     try:
         print("[INFO] Fetching theme data from external API")
+        # Make API request to fetch theme data
         response = requests.get(
             external_url, headers=headers, json={"theme": theme})
         response.raise_for_status()
 
+        # Parse the response JSON
         themes = response.json()
         message = themes.get("message", [])
         print("[INFO] Theme data fetched successfully")
@@ -336,38 +360,44 @@ def insert_custom_fields(theme, nodata=None):
             for i, j in row.items():
                 if i == "file_list":
                     print("[INFO] Processing file list")
+                    # Use a temporary directory to handle downloaded files
                     with tempfile.TemporaryDirectory() as temp_dir:
                         file_path = os.path.join(
                             temp_dir, "go1_webshop_files.zip")
 
                         try:
+                            # Download the file list from the URL
                             print("[INFO] Downloading file list")
                             with urlopen(j) as data, open(file_path, 'wb') as zip_ref:
                                 shutil.copyfileobj(data, zip_ref)
 
+                            # Extract the ZIP file contents
                             print("[INFO] Extracting files")
                             with zipfile.ZipFile(file_path, 'r') as file_data:
                                 for file in file_data.infolist():
+                                    # Skip directories and system files
                                     if file.is_dir() or file.filename.startswith("__MACOSX/"):
                                         continue
                                     filename = os.path.basename(file.filename)
                                     if filename.startswith("."):
                                         continue
+
+                                    # Determine file path in the system
                                     origin = get_files_path()
                                     item_file_path = os.path.join(
                                         origin, file.filename)
+
+                                    # Check if the file already exists in the database
                                     if not frappe.db.exists("File", {"file_name": filename}):
                                         print(
-                                            f"[INFO] File does not exist in the database, proceeding to upload: {filename}")
+                                            f"[INFO] File does not exist in the database, uploading: {filename}")
                                     else:
                                         print(
                                             f"[INFO] File exists in the database, cleaning up: {filename}")
 
-                                        # Extract base filename (without extension)
+                                        # Handle cleanup of existing file versions
                                         base_filename, ext = os.path.splitext(
                                             filename)
-
-                                        # Check and clean postfix versions (including the exact filename)
                                         existing_files = frappe.db.get_list(
                                             "File",
                                             filters={"file_name": [
@@ -376,50 +406,51 @@ def insert_custom_fields(theme, nodata=None):
                                         )
                                         for existing_file in existing_files:
                                             try:
-                                                # Get the file path for reference
                                                 existing_file_path = frappe.utils.get_files_path(
                                                     existing_file["file_url"])
-
-                                                # Remove the file if it exists
                                                 if os.path.exists(existing_file_path):
                                                     os.remove(
                                                         existing_file_path)
                                                 # Delete the file record from the database
                                                 frappe.delete_doc(
                                                     "File", existing_file["name"], force=True)
+                                            except frappe.PermissionError as e:
+                                                log_error_custom(
+                                                    "Failed to remove file", str(e))
                                             except Exception as cleanup_error:
-                                                frappe.log_error(
-                                                    f"Failed to remove existing file: {existing_file_path}, Error: {str(cleanup_error)}",
-                                                    "file_cleanup_error"
+                                                log_error_custom(
+                                                    "File cleanup error",
+                                                    f"Failed to remove {existing_file_path}: {str(cleanup_error)}"
                                                 )
 
-                                    # Proceed with uploading the new file
+                                    # Upload the new file to the system
                                     try:
                                         file_doc = frappe.new_doc("File")
                                         file_doc.content = file_data.read(
                                             file.filename)
-                                        file_doc.file_name = filename  # Force the original filename
+                                        file_doc.file_name = filename
                                         file_doc.folder = "Home"
                                         file_doc.is_private = 0
                                         file_doc.save(ignore_permissions=True)
 
-                                        # Ensure the file is saved with the original name
                                         saved_path = frappe.utils.get_files_path(
                                             file_doc.file_url)
                                         print(
                                             f"[INFO] File uploaded successfully: {saved_path}")
                                     except Exception as e:
-                                        frappe.log_error(
-                                            f"Failed to upload file: {filename}, Error: {str(e)}", "file_upload_error"
-                                        )
+                                        log_error_custom(
+                                            "File upload error", f"Failed to upload file: {filename}, Error: {str(e)}")
 
                         except Exception as e:
-                            frappe.log_error(
-                                f"Error while processing file list: {str(e)}", frappe.get_traceback())
+                            # Log errors during file list processing
+                            log_error_custom(
+                                "File list processing error", frappe.get_traceback())
                             continue
 
                 try:
+                    # Process and insert JSON data into the system
                     if isinstance(j, dict):
+                        # Insert specific doctypes only if they don't already exist
                         if j['doctype'] == "Go1 Webshop Theme" and not frappe.db.exists({"doctype": j['doctype'], "name": j['name']}):
                             frappe.get_doc(j).insert(
                                 ignore_permissions=True, ignore_mandatory=True)
@@ -427,16 +458,19 @@ def insert_custom_fields(theme, nodata=None):
                             frappe.get_doc(j).insert(
                                 ignore_permissions=True, ignore_mandatory=True)
 
+                    # Handle lists of records
                     if isinstance(j, list):
                         for k in j:
+                            # Skip specific doctypes if `nodata` is enabled
                             if nodata != 1 or k['doctype'] not in ["Item Group", "Item", "Website Item"]:
+                                # Handle various doctypes based on conditions
                                 if k['doctype'] == "Builder Component":
                                     create_builder_component(k)
                                 elif k['doctype'] == "Builder Client Script" and not frappe.db.exists({"doctype": k.get('doctype'), "name": k.get('name')}):
                                     script_doc = frappe.get_doc(k).insert(
                                         ignore_permissions=True, ignore_mandatory=True)
                                     frappe.db.sql("""UPDATE `tabBuilder Client Script` SET name=%(c_name)s WHERE name=%(s_name)s""", {
-                                                  "c_name": k.get('name'), "s_name": script_doc.name})
+                                        "c_name": k.get('name'), "s_name": script_doc.name})
                                     frappe.db.commit()
                                 elif k['doctype'] == "Custom Field" and not frappe.db.exists({"doctype": k['doctype'], "name": k['name']}):
                                     frappe.get_doc(k).insert(
@@ -457,10 +491,13 @@ def insert_custom_fields(theme, nodata=None):
                                 elif k['doctype'] == "Builder Page":
                                     read_page_module_path(j)
                 except Exception as e:
-                    frappe.log_error(frappe.get_traceback(),
-                                     "insert_custom_fields_error")
+                    # Log errors during JSON data processing
+                    log_error_custom(
+                        "Insert custom fields error", frappe.get_traceback())
     except Exception as e:
-        frappe.log_error(str(e), frappe.get_traceback())
+        # Log top-level errors
+        log_error_custom("Insert custom fields exception",
+                         frappe.get_traceback())
 
 
 def create_builder_component(param):
